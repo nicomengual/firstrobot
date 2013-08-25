@@ -1,0 +1,199 @@
+#include <stderror.mqh>
+#include <stdlib.mqh>
+//+----------------------------------------------------------------------------------------------+
+//|                                                                              SONIC System.mq4|
+//|                                                                        Copyright © 2006 RNM. |
+//|                                                                                              |
+//+----------------------------------------------------------------------------------------------+
+//+----------------------------------------------------------------------------------------------+
+//| Variables Setting .-                                                                         |
+//+----------------------------------------------------------------------------------------------+
+
+extern   string indName = "SonicR Solid Dragon-Trend (White)";
+extern   double pipAPer=50;
+double   point;
+datetime currentTimeStamp;
+double   dineroTotal;
+double   volumen;
+int      digits, ticket = 0;
+string   informacion, simbolo, ordAbierta;
+double   dragon_min;
+double   dragon_max;
+double   dragon;
+double   trend;
+bool     primeraOP=true;
+
+//+----------------------------------------------------------------------------------------------+
+//| expert initialization function                                                               |
+//+----------------------------------------------------------------------------------------------+
+int init()
+{  simbolo = Symbol();
+   if ((MarketInfo(simbolo,MODE_DIGITS)==2) || (MarketInfo(simbolo,MODE_DIGITS)==3))   { point=0.01;   digits=2; }
+   if ((MarketInfo(simbolo,MODE_DIGITS)==4) || (MarketInfo(simbolo,MODE_DIGITS)==5))   { point=0.0001; digits=4; }
+}
+
+//+----------------------------------------------------------------------------------------------+
+//| expert start function                                                                        |
+//+----------------------------------------------------------------------------------------------+
+int start()
+{  if(currentTimeStamp == Time[0]) return (0);
+   
+   currentTimeStamp  = Time[0];
+   actInfoIndicadores();
+        
+   if(ticket==0) 
+   {  
+         if (dragon_min > trend && (ordAbierta== "OP_SELL" || primeraOP == true) && anguloCorrecto("BUY") == true && DiffPrecioActual("BUY")== true ) {
+            primeraOP =  false;
+            abrirOrden("OP_BUY", false);
+         }
+         if (dragon_max < trend && (ordAbierta== "OP_BUY" || primeraOP == true) && anguloCorrecto("SELL") == true && DiffPrecioActual("SELL")== true ) {
+            primeraOP = false;
+            abrirOrden("OP_SELL", false);
+         }  
+   }     
+   else
+   {       
+       if(OrderSelect(ticket,SELECT_BY_TICKET)==true)
+       {
+           datetime ctm=OrderCloseTime();
+           if (ctm>0) { 
+              ticket=0;
+              return(0);
+           }
+       }
+       else
+         Print("OrderSelect failed error code is",GetLastError());
+
+
+       if (ordAbierta == "OP_BUY"  && dragon_min <= trend  ) cerrarOrden(false);
+       else if (ordAbierta == "OP_SELL" && dragon_max >= trend ) cerrarOrden(false);
+   }
+}
+
+//+----------------------------------------------------------------------------------------------+
+//| expert deinitialization function                                                             |
+//+----------------------------------------------------------------------------------------------+
+int deinit()
+{   return(0);
+}
+
+//+----------------------------------------------------------------------------------------------+
+//| Updating the values of the indicators variables TREND / EMOTIONS / SENTIMENT / EXTREME  |
+//+----------------------------------------------------------------------------------------------+
+string actInfoIndicadores()
+{  
+    dragon_max=iCustom(NULL, 0, indName, 0, 1);
+    dragon_min=iCustom(NULL, 0, indName, 1, 1);
+    dragon=iCustom(NULL, 0, indName, 4, 1);
+    trend=iCustom(NULL, 0, indName, 5, 1);
+}
+//+----------------------------------------------------------------------------------------------+
+//| Open Order.-                                                                                |
+//+----------------------------------------------------------------------------------------------+
+void abrirOrden(string tipoOrden, bool log)
+{  RefreshRates();
+   double volumen = AccountBalance() * point; 
+   double pip     = point * pipAPer;   
+          ticket  = 0;
+   while( ticket <= 0)
+   {  if (tipoOrden == "OP_BUY")   ticket=OrderSend(simbolo, OP_BUY,  volumen, Ask, 3, 0/*Bid - (point * 100)*/, Ask + (point * 50), "Orden Buy" , 16384, 0, Green);
+      if (tipoOrden == "OP_SELL")  ticket=OrderSend(simbolo, OP_SELL, volumen, Bid, 3, 0/*Ask + (point * 100)*/, Bid - (point * 50), "Orden Sell", 16385, 0, Red);
+      if (ticket<=0)               Print("Error opening order  ", tipoOrden , " : ", ErrorDescription( GetLastError() ) ); 
+   }  ordAbierta = tipoOrden;
+   
+   if (log==true) mostrarOrden();
+}
+
+//+----------------------------------------------------------------------------------------------+
+//| Select Order so it can be executed in the next steps.-                        |
+//+----------------------------------------------------------------------------------------------+
+bool seleccionarOrden(string accion)
+{  if(OrderSelect(ticket, SELECT_BY_TICKET, MODE_TRADES)==false) 
+   {  Print("Error Seleccionando Orden para ", accion, " : ", ErrorDescription(GetLastError()) );
+      return(false);
+   }  return( true);
+}
+
+//+----------------------------------------------------------------------------------------------+
+//| Close Order.-                                                                               |
+//+----------------------------------------------------------------------------------------------+
+void cerrarOrden(bool log)
+{  if (seleccionarOrden("cerrarOrden")==false) return(0);
+   double lote=OrderLots();
+   double price=0;
+   bool   band =false;
+          
+   if (OrderType()== 0) price = Bid;  //OP_BUY  - buying position.-
+   if (OrderType()== 1) price = Ask;  //OP_SELL - selling position.-
+
+   RefreshRates();
+   while (band==false)
+   {      band=OrderClose( ticket, lote, price, 3, CLR_NONE);
+          if (band==false && GetLastError()==4108) //In case the order was closed on stop loss.
+          {   ticket=0; band = true; 
+          }
+   }          ticket=0;
+   
+   if (log==true) mostrarOrden();
+}
+//+----------------------------------------------------------------------------------------------+
+//| Angle check for Dragon Indicator.-                                                               |
+//+----------------------------------------------------------------------------------------------+
+bool anguloCorrecto(string op)
+{ 
+  double dragon0;
+  if (op == "BUY"){
+      dragon0=iCustom(NULL, 0, indName, 4, 3);
+      if ( (dragon - dragon0) > 0.0002 ) return(true);
+      else return(false);
+  }
+  if (op == "SELL"){
+      dragon0=iCustom(NULL, 0, indName, 4, 3);
+      if ( (dragon0-dragon) > 0.0002 ) return(true);
+      else return(false);
+  }
+}
+
+//+----------------------------------------------------------------------------------------------+
+//| Checking current Price against inf or sup Dragon value.-                   |
+//+----------------------------------------------------------------------------------------------+
+bool DiffPrecioActual(string op){
+
+  if (op == "BUY"){
+     if ( Ask - dragon_max > 0.0015 ) return(false);
+     else return(true);
+  }
+  if (op == "SELL"){
+     if ( dragon_min - Bid > 0.0015 ) return(false);
+     else return(true);
+  }
+
+}
+//+----------------------------------------------------------------------------------------------+
+//| Show Order Open prices and info (used for debugging and control).-                                               |
+//+----------------------------------------------------------------------------------------------+
+void mostrarOrden()
+{  if (seleccionarOrden("mostrarOrden")==false) return(0);
+   Print ("===========================================================");
+   Print ( informacion                                                 );
+   Print ("Ask            = " , DoubleToStr( Ask              ,digits ));
+   Print ("Bid            = " , DoubleToStr( Bid              ,digits ));
+   Print ("pipsAPerder    = " ,              pipAPer                   );
+   Print ("ticket number  = #",              OrderTicket()             );
+   Print ("open time      = " , TimeToStr(   OrderOpenTime())          );
+   Print ("trade operation= " ,              OrderType()               );
+   Print ("amount of lots = " , DoubleToStr( OrderLots()      ,digits ));
+   Print ("open price     = " , DoubleToStr( OrderOpenPrice() ,digits ));
+   Print ("Stop Loss      = " , DoubleToStr( OrderStopLoss()  ,digits ));
+   Print ("Take Profit    = " , DoubleToStr( OrderTakeProfit(),digits ));
+   Print ("close time     = " ,              OrderCloseTime()          );
+   Print ("close price    = " , DoubleToStr( OrderClosePrice(),digits ));
+   Print ("commission     = " , DoubleToStr( OrderCommission(),digits ));
+   Print ("profit         = " , DoubleToStr( OrderProfit()    ,digits ));
+   Print ("comment        = " ,              OrderComment()            );
+   Print ("AccountBalance = " ,              AccountBalance()          );
+}
+//+----------------------------------------------------------------------------------------------+
+//| End.-                                                                                        |
+//+----------------------------------------------------------------------------------------------+
