@@ -79,7 +79,7 @@ int deinit()
 }
 
 //+----------------------------------------------------------------------------------------------+
-//| Updating the values of the indicators variables TREND / EMOTIONS / SENTIMENT / EXTREME  |
+//| Updating the values of the indicators variables TREND / EMOTIONS / SENTIMENT / EXTREME       |
 //+----------------------------------------------------------------------------------------------+
 string actInfoIndicadores()
 {  
@@ -89,7 +89,7 @@ string actInfoIndicadores()
     trend=iCustom(NULL, 0, indName, 5, 1);
 }
 //+----------------------------------------------------------------------------------------------+
-//| Open Order.-                                                                                |
+//| Open Order.-                                                                                 |
 //+----------------------------------------------------------------------------------------------+
 void abrirOrden(string tipoOrden, bool log)
 {  RefreshRates();
@@ -106,7 +106,7 @@ void abrirOrden(string tipoOrden, bool log)
 }
 
 //+----------------------------------------------------------------------------------------------+
-//| Select Order so it can be executed in the next steps.-                        |
+//| Select Order so it can be executed in the next steps.-                                       |
 //+----------------------------------------------------------------------------------------------+
 bool seleccionarOrden(string accion)
 {  if(OrderSelect(ticket, SELECT_BY_TICKET, MODE_TRADES)==false) 
@@ -116,7 +116,7 @@ bool seleccionarOrden(string accion)
 }
 
 //+----------------------------------------------------------------------------------------------+
-//| Close Order.-                                                                               |
+//| Close Order.-                                                                                |
 //+----------------------------------------------------------------------------------------------+
 void cerrarOrden(bool log)
 {  if (seleccionarOrden("cerrarOrden")==false) return(0);
@@ -138,7 +138,7 @@ void cerrarOrden(bool log)
    if (log==true) mostrarOrden();
 }
 //+----------------------------------------------------------------------------------------------+
-//| Angle check for Dragon Indicator.-                                                               |
+//| Angle check for Dragon Indicator.-                                                           |
 //+----------------------------------------------------------------------------------------------+
 bool anguloCorrecto(string op)
 { 
@@ -156,7 +156,7 @@ bool anguloCorrecto(string op)
 }
 
 //+----------------------------------------------------------------------------------------------+
-//| Checking current Price against inf or sup Dragon value.-                   |
+//| Checking current Price against inf or sup Dragon value.-                                     |
 //+----------------------------------------------------------------------------------------------+
 bool DiffPrecioActual(string op){
 
@@ -171,7 +171,7 @@ bool DiffPrecioActual(string op){
 
 }
 //+----------------------------------------------------------------------------------------------+
-//| Show Order Open prices and info (used for debugging and control).-                                               |
+//| Show Order Open prices and info (used for debugging and control).-                           |
 //+----------------------------------------------------------------------------------------------+
 void mostrarOrden()
 {  if (seleccionarOrden("mostrarOrden")==false) return(0);
